@@ -1,132 +1,23 @@
-name: DEN-1391 stale fencing real-process proof
+name: DEN-1391 stale fencing artifact proof (manual)
 
 on:
-  pull_request:
-    paths:
-      - ".github/workflows/stale-fencing-real-process.yml"
-      - "scripts/stale-fencing-e2e.mjs"
-      - "scripts/validate-plan.mjs"
-      - "source-pins.json"
-      - "test-plan.json"
-      - "README.md"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/stale-fencing-real-process.yml"
-      - "scripts/stale-fencing-e2e.mjs"
-      - "scripts/validate-plan.mjs"
-      - "source-pins.json"
-      - "test-plan.json"
-      - "README.md"
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  packages: read
 
 jobs:
-  three-node-stale-fencing:
+  boundary:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 5
     steps:
-      - name: Check out test-org harness
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Validate this workflow
-        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
-        with:
-          args: .github/workflows/stale-fencing-real-process.yml
-
-      - name: Check out exact fiducia-node source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          repository: fiducia-cloud/fiducia-node.rs
-          ref: 4dbccfe5bcb0007bf9405537155b289dd1136c6a
-          path: source/fiducia-node.rs
-
-      - name: Check out exact routing contract
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          repository: fiducia-cloud/fiducia-routing.rs
-          ref: c694bc5c58587bec12989a347e926c0040aacada
-          path: source/fiducia-routing.rs
-
-      - name: Check out exact generated interfaces
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          repository: fiducia-cloud/fiducia-interfaces
-          ref: 6081bc3f3b7cbe0312870968b61acc38ca91c66a
-          path: source/fiducia-interfaces
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "22.22.1"
-
-      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-        with:
-          toolchain: "1.95.0"
-          components: rustfmt, clippy
-
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          workspaces: source/fiducia-node.rs
-
-      - name: Verify immutable source pins and parse harness
-        shell: bash
+      - name: Explain the manual artifact boundary
         run: |
-          set -euo pipefail
-          test "$(git -C source/fiducia-node.rs rev-parse HEAD)" = \
-            "$(jq -r '.sources[] | select(.name == "fiducia-node.rs") | .commit' source-pins.json)"
-          test "$(git -C source/fiducia-routing.rs rev-parse HEAD)" = \
-            "$(jq -r '.sources[] | select(.name == "fiducia-routing.rs") | .commit' source-pins.json)"
-          test "$(git -C source/fiducia-interfaces rev-parse HEAD)" = \
-            "$(jq -r '.sources[] | select(.name == "fiducia-interfaces") | .commit' source-pins.json)"
+          echo 'The destructive harness is executed automatically by fiducia-cloud/fiducia-node.rs.'
+          echo 'This optional test-org workflow remains manual because package access is deployment-specific.'
           node --check scripts/stale-fencing-e2e.mjs
           node scripts/validate-plan.mjs
-
-      - name: Format, lint, test, and build exact node source
-        working-directory: source/fiducia-node.rs
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --locked --bin fiducia-node -- -D warnings
-          cargo test --locked locks::tests
-          cargo build --locked --bin fiducia-node
-
-      - name: Run three-node TTL transfer, stale-fencing, crash, and restart proof
-        env:
-          FIDUCIA_NODE_BIN: ${{ github.workspace }}/source/fiducia-node.rs/target/debug/fiducia-node
-          FIDUCIA_NODE_SOURCE_COMMIT: 4dbccfe5bcb0007bf9405537155b289dd1136c6a
-          FIDUCIA_FENCING_EVIDENCE_PATH: ${{ github.workspace }}/test-results/stale-fencing-evidence.json
-        run: node scripts/stale-fencing-e2e.mjs
-
-      - name: Validate bounded synthetic evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          evidence=test-results/stale-fencing-evidence.json
-          jq -e '.schema_version == 1' "$evidence"
-          jq -e '.production_evidence == false' "$evidence"
-          jq -e '.passed == true' "$evidence"
-          jq -e '.tokens.holder_a < .tokens.holder_b and .tokens.holder_b < .tokens.holder_c and .tokens.holder_c < .tokens.holder_d' "$evidence"
-          jq -e '[.downstream_history[] | select(.accepted == false)] | length >= 3' "$evidence"
-          jq -e '[.leader_events[].event] | sort == ["crash", "restart"]' "$evidence"
-          if grep -Eiq '(ghp_|cfat_|lin_api_|secret_access_key|authorization:[[:space:]]*bearer)' "$evidence"; then
-            echo 'synthetic evidence contains credential-shaped material' >&2
-            exit 1
-          fi
-          {
-            echo '## DEN-1391 stale-fencing test-org proof'
-            echo
-            echo "- Node source: \`$(jq -r '.source_commit' "$evidence")\`"
-            echo "- Assertions: \`$(jq '.assertions | length' "$evidence")\`"
-            echo "- Downstream stale writes rejected: \`$(jq '[.downstream_history[] | select(.accepted == false)] | length' "$evidence")\`"
-            echo '- Evidence tier: synthetic test-org automation only'
-          } >>"$GITHUB_STEP_SUMMARY"
