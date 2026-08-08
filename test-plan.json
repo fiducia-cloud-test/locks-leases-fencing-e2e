@@ -48,28 +48,28 @@
       "fullName": "fiducia-cloud/fiducia-node.rs",
       "exists": true,
       "branch": "main",
-      "sha": "4dbccfe5bcb0007bf9405537155b289dd1136c6a",
-      "visibility": "public"
+      "sha": "3d29536f4c2cce3c2ec094e4277d327c94f75590",
+      "visibility": "production-repository-owned"
     },
     {
       "fullName": "fiducia-cloud/fiducia-routing.rs",
       "exists": true,
       "branch": "main",
       "sha": "c694bc5c58587bec12989a347e926c0040aacada",
-      "visibility": "public"
+      "visibility": "production-repository-owned"
     },
     {
       "fullName": "fiducia-cloud/fiducia-interfaces",
       "exists": true,
       "branch": "main",
-      "sha": "6081bc3f3b7cbe0312870968b61acc38ca91c66a",
-      "visibility": "public"
+      "sha": "15950fffabdf97334c2c7daa4ebc15730587a823",
+      "visibility": "production-repository-owned"
     }
   ],
   "sourceGates": [
     "all source commits are full immutable SHAs",
     "node build uses the exact sibling routing and generated interface commits",
-    "no production credential or endpoint is required"
+    "the test organization receives no production credential or source checkout"
   ],
   "imports": [],
   "security": {
@@ -78,6 +78,7 @@
     "leastPrivilege": true,
     "redactSecretsAndRawMedia": true,
     "productionEvidence": false,
-    "singleRunnerFailureDomainDisclosed": true
+    "singleRunnerFailureDomainDisclosed": true,
+    "testOrgChecksOutProductionSource": false
   }
 }
