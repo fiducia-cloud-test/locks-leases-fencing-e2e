@@ -57,7 +57,10 @@ jobs:
           grep -Fq 'production_evidence: false' scripts/stale-fencing-e2e.mjs
           grep -Fq 'downstream rejected the paused old holder after transfer' scripts/stale-fencing-e2e.mjs
           grep -Fq 'full cluster restart preserved committed holder and token' scripts/stale-fencing-e2e.mjs
-          if grep -REiq '(ghp_|cfat_|lin_api_|secret_access_key)' . --exclude-dir=.git; then
+          # Scan tracked content while excluding this workflow, which must name
+          # the prohibited prefixes in order to enforce the policy.
+          if git grep -IEn '(ghp_|cfat_|lin_api_|secret_access_key)' -- \
+            ':(exclude).github/workflows/harness-contract.yml'; then
             echo 'test-org harness contains credential-shaped material' >&2
             exit 1
           fi
