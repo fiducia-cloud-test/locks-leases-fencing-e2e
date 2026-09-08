@@ -1,0 +1,48 @@
+schema_version = 1
+id = "fiducia-lock-many-fencing"
+repository = "fiducia-cloud-test/locks-leases-fencing-e2e"
+issue = "DEN-566"
+model = "formal/model.mjs"
+runner = "node"
+adapter_protocol = "jsonl-actions/v1"
+command = ["node", "formal/model.mjs"]
+replay_command = ["node", "formal/model.mjs", "--json-stdin"]
+claim = "finite-exhaustive-abstraction"
+timeout_seconds = 30
+
+[limits]
+locks = 2
+clients = 2
+payload_values = 2
+max_time = 4
+max_fence = 3
+lease_ttl = 2
+
+[[invariants]]
+id = "atomic-lock-many-acquire"
+description = "A grouped acquisition grants every lock with newer fences or grants none."
+
+[[invariants]]
+id = "atomic-lock-many-release"
+description = "A grouped release frees every lock or leaves the complete grant unchanged."
+
+[[invariants]]
+id = "atomic-fenced-write"
+description = "A protected multi-resource update commits every member or no member."
+
+[[invariants]]
+id = "partition-retains-grant-until-expiry"
+description = "Network loss cannot implicitly release the authority grant before TTL expiry."
+
+[[invariants]]
+id = "monotonic-per-lock-fences"
+description = "Each lock fencing token and persisted resource fence is monotonic."
+
+[[invariants]]
+id = "stale-leader-rejected"
+description = "A partitioned or superseded holder cannot write with an older fence."
+
+[refinement]
+status = "required"
+production_paths = ["test-plan.json", "source-pins.json", "scripts/validate-plan.mjs"]
+notes = "This test-organization model is independent of production code. Source repositories must replay exported JSON-lines traces and retain native integration tests."
