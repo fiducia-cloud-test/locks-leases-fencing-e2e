@@ -1,0 +1,62 @@
+name: formal lock-many and fencing model
+
+on:
+  pull_request:
+    paths:
+      - 'formal/**'
+      - 'test-plan.json'
+      - 'source-pins.json'
+      - 'scripts/**'
+      - '.github/workflows/formal-model.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'formal/**'
+      - 'test-plan.json'
+      - 'source-pins.json'
+      - 'scripts/**'
+      - '.github/workflows/formal-model.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-model-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bounded-model:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+          submodules: false
+
+      - name: Record runtime
+        run: node --version
+
+      - name: Validate formal manifest identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'repository = "fiducia-cloud-test/locks-leases-fencing-e2e"' formal/fm.toml
+          grep -Fq 'issue = "DEN-566"' formal/fm.toml
+          grep -Fq 'claim = "finite-exhaustive-abstraction"' formal/fm.toml
+          grep -Fq 'status = "required"' formal/fm.toml
+          test -f formal/PROCEDURE.md
+
+      - name: Exhaustively check the bounded state space
+        run: node formal/model.mjs
+
+      - name: Exercise deterministic replay adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=$(printf '%s\n' '{"actions":[{"kind":"acquire-many","client":"a"},{"kind":"write-many","client":"a","value":1},{"kind":"partition","client":"a"},{"kind":"tick"},{"kind":"tick"},{"kind":"acquire-many","client":"b"},{"kind":"write-many","client":"a","value":2},{"kind":"write-many","client":"b","value":2}]}' | node formal/model.mjs --json-stdin)
+          printf '%s\n' "$output"
+          node -e 'const v=JSON.parse(process.argv[1]); if(!v.ok || v.state.resourceFences.some(x=>x!==2) || v.outcomes[6].accepted!==false){process.exit(1)}' "$output"
