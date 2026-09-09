@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "fiducia.lock-many.replay/v1",
+  "actions": [
+    { "kind": "acquire-many", "client": "a" },
+    { "kind": "write-many", "client": "a", "value": 1 },
+    { "kind": "partition", "client": "a" },
+    { "kind": "tick" },
+    { "kind": "tick" },
+    { "kind": "acquire-many", "client": "b" },
+    { "kind": "write-many", "client": "b", "value": 2 }
+  ]
+}
