@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fiducia.lock-many.contract.schema.json",
+  "$defs": {
+    "LockManyActionKind": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "LockManyActionKind",
+      "type": "string",
+      "enum": ["tick", "acquire-many", "renew-many", "release-many", "partition", "write-many"]
+    },
+    "LockManyAction": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "LockManyAction",
+      "type": "object",
+      "properties": {
+        "kind": { "$ref": "LockManyActionKind" },
+        "client": { "type": "string" },
+        "value": { "type": "integer", "minimum": -2147483648, "maximum": 2147483647 }
+      },
+      "required": ["kind"],
+      "unevaluatedProperties": false
+    },
+    "LockManyReplayRequest": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "LockManyReplayRequest",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "fiducia.lock-many.replay/v1" },
+        "actions": { "type": "array", "items": { "$ref": "LockManyAction" } }
+      },
+      "required": ["schemaVersion", "actions"],
+      "unevaluatedProperties": false
+    },
+    "LockManyReplayOutcome": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "LockManyReplayOutcome",
+      "type": "object",
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "reason": { "type": "string" }
+      },
+      "required": ["accepted", "reason"],
+      "unevaluatedProperties": false
+    }
+  }
+}
