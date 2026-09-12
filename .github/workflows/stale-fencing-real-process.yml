@@ -1,0 +1,23 @@
+name: DEN-1391 stale fencing artifact proof (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  boundary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Explain the manual artifact boundary
+        run: |
+          echo 'The destructive harness is executed automatically by fiducia-cloud/fiducia-node.rs.'
+          echo 'This optional test-org workflow remains manual because package access is deployment-specific.'
+          node --check scripts/stale-fencing-e2e.mjs
+          node scripts/validate-plan.mjs

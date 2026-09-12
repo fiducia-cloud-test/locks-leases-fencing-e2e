@@ -1,0 +1,66 @@
+name: DEN-1391 stale-fencing harness contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/harness-contract.yml'
+      - '.github/workflows/stale-fencing-real-process.yml'
+      - 'scripts/**'
+      - 'source-pins.json'
+      - 'test-plan.json'
+      - 'README.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/harness-contract.yml'
+      - '.github/workflows/stale-fencing-real-process.yml'
+      - 'scripts/**'
+      - 'source-pins.json'
+      - 'test-plan.json'
+      - 'README.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate workflows
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/harness-contract.yml .github/workflows/stale-fencing-real-process.yml
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.22.1'
+      - name: Validate executable plan and source boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/stale-fencing-e2e.mjs
+          node --check scripts/validate-plan.mjs
+          node scripts/validate-plan.mjs
+          jq -e '.schema_version == 3' source-pins.json
+          jq -e '.access_boundary.test_org_checks_out_private_production_source == false' source-pins.json
+          jq -e '.access_boundary.test_org_receives_cross_org_pat == false' source-pins.json
+          jq -e '.runner_boundary.production_failure_domain_evidence == false' source-pins.json
+          jq -e '.security.productionEvidence == false' test-plan.json
+          grep -Fq 'production_evidence: false' scripts/stale-fencing-e2e.mjs
+          grep -Fq 'downstream rejected the paused old holder after transfer' scripts/stale-fencing-e2e.mjs
+          grep -Fq 'full cluster restart preserved committed holder and token' scripts/stale-fencing-e2e.mjs
+          # Scan tracked content while excluding this workflow, which must name
+          # the prohibited prefixes in order to enforce the policy.
+          if git grep -IEn '(ghp_|cfat_|lin_api_|secret_access_key)' -- \
+            ':(exclude).github/workflows/harness-contract.yml'; then
+            echo 'test-org harness contains credential-shaped material' >&2
+            exit 1
+          fi
