@@ -1,0 +1,38 @@
+{
+  "schema": "fiducia-cloud-test.live-mutex-source-pins/v1",
+  "sources": {
+    "node": {
+      "repository": "ORESoftware/live-mutex",
+      "branch": "dev",
+      "sha": "1c85e3cab11b3d3e860d4f58b5a192ee42ddd9f2"
+    },
+    "rust": {
+      "repository": "ORESoftware/live-mutex-rs",
+      "branch": "dev",
+      "sha": "9b3c1eea4c78c8a8164fb329a6dd6ce65b680bd4"
+    }
+  },
+  "required_client_count_per_broker": 9,
+  "node_clients": [
+    "rust",
+    "python",
+    "shell",
+    "powershell",
+    "go",
+    "dart",
+    "java",
+    "cpp",
+    "gleam"
+  ],
+  "rust_clients": [
+    "typescript",
+    "go",
+    "dart",
+    "gleam",
+    "python",
+    "cpp",
+    "java",
+    "shell",
+    "powershell"
+  ]
+}
