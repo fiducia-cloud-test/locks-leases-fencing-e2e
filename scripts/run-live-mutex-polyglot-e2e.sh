@@ -117,7 +117,7 @@ run_case node shell "$NODE_ROOT/clients/shell/smoke.sh"
 run_case node powershell pwsh "$NODE_ROOT/clients/powershell/smoke.ps1"
 run_case node go bash -lc "cd '$NODE_ROOT/clients/go' && go run ./cmd/smoke"
 run_case node dart bash -lc "cd '$NODE_ROOT/clients/dart' && dart pub get >/dev/null && dart run example/smoke.dart"
-run_case node java mvn -q -f "$NODE_ROOT/clients/java/pom.xml" exec:java
+run_case node java mvn -q -f "$NODE_ROOT/clients/java/pom.xml" compile exec:java
 run_case node cpp make -C "$NODE_ROOT/clients/cpp" run
 run_case node gleam bash -lc "cd '$NODE_ROOT/clients/gleam' && LIVE_MUTEX_SMOKE=1 gleam test"
 
