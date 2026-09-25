@@ -3,8 +3,8 @@
   "sources": {
     "node": {
       "repository": "ORESoftware/live-mutex",
-      "branch": "fix/java-client-protocol-parity",
-      "sha": "8809908fe4365b3f933002bdcf2f24e7aeb35a83"
+      "branch": "dev",
+      "sha": "4dbbec5565d33a424ff747532115e144d6b37b6d"
     },
     "rust": {
       "repository": "ORESoftware/live-mutex-rs",
