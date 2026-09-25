@@ -4,7 +4,7 @@
     "node": {
       "repository": "ORESoftware/live-mutex",
       "branch": "dev",
-      "sha": "1c85e3cab11b3d3e860d4f58b5a192ee42ddd9f2"
+      "sha": "c99772b40d040487fe0ecbc47204a5a9e28855e6"
     },
     "rust": {
       "repository": "ORESoftware/live-mutex-rs",
