@@ -1,0 +1,130 @@
+name: live-mutex polyglot e2e
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/live-mutex-polyglot-e2e.yml'
+      - 'live-mutex-source-pins.json'
+      - 'scripts/run-live-mutex-polyglot-e2e.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-mutex-polyglot-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  both-brokers-nine-clients:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out test harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out pinned Node broker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/live-mutex
+          ref: 1c85e3cab11b3d3e860d4f58b5a192ee42ddd9f2
+          path: live-mutex
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out pinned Rust broker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/live-mutex-rs
+          ref: 9b3c1eea4c78c8a8164fb329a6dd6ce65b680bd4
+          path: live-mutex-rs
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify immutable source pins
+        run: |
+          set -euo pipefail
+          test "$(git -C live-mutex rev-parse HEAD)" = "1c85e3cab11b3d3e860d4f58b5a192ee42ddd9f2"
+          test "$(git -C live-mutex-rs rev-parse HEAD)" = "9b3c1eea4c78c8a8164fb329a6dd6ce65b680bd4"
+          node - <<'NODE'
+          const fs = require('fs');
+          const pins = JSON.parse(fs.readFileSync('live-mutex-source-pins.json', 'utf8'));
+          if (pins.required_client_count_per_broker !== 9) {
+            throw new Error('expected exactly nine required clients per broker');
+          }
+          if (pins.node_clients.length !== 9 || pins.rust_clients.length !== 9) {
+            throw new Error('client pin lists must each contain exactly nine languages');
+          }
+          NODE
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.22'
+          cache: false
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.85.1'
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: '27'
+          gleam-version: '1.16.0'
+          rebar3-version: '3'
+
+      - name: Verify required preinstalled runtimes
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+          mvn -version
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+          c++ --version
+          python3 --version
+
+      - name: Run nine real clients against both brokers
+        env:
+          NODE_MUTEX_ROOT: ${{ github.workspace }}/live-mutex
+          RUST_MUTEX_ROOT: ${{ github.workspace }}/live-mutex-rs
+          EVIDENCE_DIR: ${{ github.workspace }}/evidence/live-mutex-polyglot
+        run: bash scripts/run-live-mutex-polyglot-e2e.sh
+
+      - name: Validate evidence receipts
+        if: success()
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const expected = {
+            node: '1c85e3cab11b3d3e860d4f58b5a192ee42ddd9f2',
+            rust: '9b3c1eea4c78c8a8164fb329a6dd6ce65b680bd4',
+          };
+          for (const [broker, sha] of Object.entries(expected)) {
+            const receipt = JSON.parse(fs.readFileSync(`evidence/live-mutex-polyglot/${broker}.json`, 'utf8'));
+            if (receipt.result !== 'passed' || receipt.client_count !== 9 || receipt.clients.length !== 9) {
+              throw new Error(`${broker} did not prove nine successful clients`);
+            }
+            if (receipt.source_sha !== sha) {
+              throw new Error(`${broker} receipt source SHA mismatch`);
+            }
+          }
+          NODE
+
+      - name: Retain exact-source E2E evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: live-mutex-polyglot-e2e-${{ github.sha }}
+          path: evidence/live-mutex-polyglot
+          if-no-files-found: error
+          retention-days: 30
