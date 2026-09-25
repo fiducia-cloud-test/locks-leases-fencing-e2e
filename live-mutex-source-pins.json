@@ -3,8 +3,8 @@
   "sources": {
     "node": {
       "repository": "ORESoftware/live-mutex",
-      "branch": "fix/java-smoke-primitive-fencing-20260925",
-      "sha": "a4471901f5efdc90a3da227451a41c767a259714"
+      "branch": "fix/java-client-protocol-parity",
+      "sha": "8809908fe4365b3f933002bdcf2f24e7aeb35a83"
     },
     "rust": {
       "repository": "ORESoftware/live-mutex-rs",
